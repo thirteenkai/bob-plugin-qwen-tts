@@ -1,6 +1,6 @@
 {
     "identifier": "com.qwen.tts.bob.plugin",
-    "appcast": [
+    "versions": [
         {
             "version": "1.5.2",
             "desc": "v1.5.2 更新内容：\n• 🎨 优化插件图标显示效果",
