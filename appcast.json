@@ -1,0 +1,12 @@
+{
+    "identifier": "com.qwen.tts.bob.plugin",
+    "appcast": [
+        {
+            "version": "1.4.0",
+            "desc": "v1.4.0 更新内容：\n• 新增 25+ 种语音角色（普通话/方言/粤语/英语/日语/韩语）\n• 修复语音角色选择不生效的问题",
+            "sha256": "42088fafe16815b549fd1402c32243695b716de1ead75b668e7ed97aa2210fe0",
+            "url": "https://github.com/thirteenkai/bob-plugin-qwen-tts/releases/download/v1.4.0/qwen-tts.bobplugin",
+            "minBobVersion": "1.6.0"
+        }
+    ]
+}

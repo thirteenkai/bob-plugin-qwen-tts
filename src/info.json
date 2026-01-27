@@ -1,0 +1,219 @@
+{
+    "identifier": "com.qwen.tts.bob.plugin",
+    "version": "1.4.0",
+    "category": "tts",
+    "name": "Qwen TTS",
+    "summary": "使用阿里云 Qwen3-TTS-Flash 模型进行语音合成",
+    "icon": "microphone",
+    "author": "thirteenkai",
+    "homepage": "https://github.com/thirteenkai/bob-plugin-qwen-tts",
+    "appcast": "https://raw.githubusercontent.com/thirteenkai/bob-plugin-qwen-tts/main/appcast.json",
+    "minBobVersion": "1.6.0",
+    "options": [
+        {
+            "identifier": "apiKey",
+            "type": "text",
+            "title": "API Key",
+            "desc": "必填项。请填入 DashScope API Key，可在 https://dashscope.console.aliyun.com/ 申请",
+            "textConfig": {
+                "type": "secure",
+                "height": 40,
+                "placeholderText": "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            }
+        },
+        {
+            "identifier": "region",
+            "type": "menu",
+            "title": "API 地域",
+            "defaultValue": "cn",
+            "desc": "选择 API 服务地域，国内用户选择北京，海外用户选择新加坡",
+            "menuValues": [
+                {
+                    "title": "北京 (国内)",
+                    "value": "cn"
+                },
+                {
+                    "title": "新加坡 (国际)",
+                    "value": "intl"
+                }
+            ]
+        },
+        {
+            "identifier": "model",
+            "type": "menu",
+            "title": "模型",
+            "defaultValue": "qwen3-tts-flash",
+            "desc": "选择 TTS 模型",
+            "menuValues": [
+                {
+                    "title": "Qwen3-TTS-Flash (推荐)",
+                    "value": "qwen3-tts-flash"
+                },
+                {
+                    "title": "Qwen-TTS",
+                    "value": "qwen-tts"
+                }
+            ]
+        },
+        {
+            "identifier": "voice",
+            "type": "menu",
+            "title": "语音角色",
+            "defaultValue": "Ethan",
+            "desc": "选择语音角色（支持49种音色）",
+            "menuValues": [
+                {
+                    "title": "【普通话男声】",
+                    "value": "_separator_1"
+                },
+                {
+                    "title": "★ Ethan/晨煦 (阳光温暖-标准普通话)",
+                    "value": "Ethan"
+                },
+                {
+                    "title": "Ryan/甜茶 (节奏感强-戏感丰富)",
+                    "value": "Ryan"
+                },
+                {
+                    "title": "Elias/墨讲师 (严谨叙事-讲师风格)",
+                    "value": "Elias"
+                },
+                {
+                    "title": "Neil/尼尔 (深沉磁性)",
+                    "value": "Neil"
+                },
+                {
+                    "title": "【普通话女声】",
+                    "value": "_separator_2"
+                },
+                {
+                    "title": "Cherry/芊悦 (阳光积极-亲切自然)",
+                    "value": "Cherry"
+                },
+                {
+                    "title": "Serena/苏瑶 (温柔)",
+                    "value": "Serena"
+                },
+                {
+                    "title": "Chelsie/千雪 (二次元虚拟女友)",
+                    "value": "Chelsie"
+                },
+                {
+                    "title": "Maia/四月 (知性与温柔)",
+                    "value": "Maia"
+                },
+                {
+                    "title": "Katerina/卡捷琳娜 (御姐-韵律回味)",
+                    "value": "Katerina"
+                },
+                {
+                    "title": "Jennifer/詹妮弗 (电影质感美语女声)",
+                    "value": "Jennifer"
+                },
+                {
+                    "title": "Nofish/不吃鱼 (不翘舌-设计师风格)",
+                    "value": "Nofish"
+                },
+                {
+                    "title": "【方言男声】",
+                    "value": "_separator_3"
+                },
+                {
+                    "title": "Dylan/晓东 (北京话-胡同少年)",
+                    "value": "Dylan"
+                },
+                {
+                    "title": "Marcus/秦川 (陕西话-老陕味道)",
+                    "value": "Marcus"
+                },
+                {
+                    "title": "Roy/阿杰 (闽南话-诙谐直爽)",
+                    "value": "Roy"
+                },
+                {
+                    "title": "li/老李 (南京话-耐心瑜伽老师)",
+                    "value": "li"
+                },
+                {
+                    "title": "【方言女声】",
+                    "value": "_separator_4"
+                },
+                {
+                    "title": "Jada/阿珍 (上海话-沪上阿姐)",
+                    "value": "Jada"
+                },
+                {
+                    "title": "Sunny/晴儿 (四川话-甜美川妹子)",
+                    "value": "Sunny"
+                },
+                {
+                    "title": "【粤语】",
+                    "value": "_separator_5"
+                },
+                {
+                    "title": "Lisa/丽莎 (粤语女声)",
+                    "value": "Lisa"
+                },
+                {
+                    "title": "Brandon/布兰登 (粤语男声)",
+                    "value": "Brandon"
+                },
+                {
+                    "title": "【英语】",
+                    "value": "_separator_6"
+                },
+                {
+                    "title": "Emily/艾米丽 (美式英语女声)",
+                    "value": "Emily"
+                },
+                {
+                    "title": "James/詹姆斯 (美式英语男声)",
+                    "value": "James"
+                },
+                {
+                    "title": "Olivia/奥利维亚 (英式英语女声)",
+                    "value": "Olivia"
+                },
+                {
+                    "title": "William/威廉 (英式英语男声)",
+                    "value": "William"
+                },
+                {
+                    "title": "【日语】",
+                    "value": "_separator_7"
+                },
+                {
+                    "title": "Yuki/雪 (日语女声)",
+                    "value": "Yuki"
+                },
+                {
+                    "title": "Takeshi/武 (日语男声)",
+                    "value": "Takeshi"
+                },
+                {
+                    "title": "【韩语】",
+                    "value": "_separator_8"
+                },
+                {
+                    "title": "Minjun/敏俊 (韩语男声)",
+                    "value": "Minjun"
+                },
+                {
+                    "title": "Jihye/智慧 (韩语女声)",
+                    "value": "Jihye"
+                }
+            ]
+        },
+        {
+            "identifier": "timeout",
+            "type": "text",
+            "title": "超时时间",
+            "defaultValue": "60",
+            "desc": "自定义语音合成的超时时间(秒)，范围 30-300",
+            "textConfig": {
+                "type": "visible",
+                "placeholderText": "60"
+            }
+        }
+    ]
+}
