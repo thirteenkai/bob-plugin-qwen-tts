@@ -12,5 +12,8 @@
 # Node
 node_modules/
 
+# 个人文档（不上传到 GitHub）
+GITHUB_GUIDE.md
+
 # 打包后的文件（可选保留或删除）
 # qwen-tts.bobplugin
