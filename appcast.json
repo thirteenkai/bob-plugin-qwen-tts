@@ -2,6 +2,13 @@
     "identifier": "com.qwen.tts.bob.plugin",
     "appcast": [
         {
+            "version": "1.5.2",
+            "desc": "v1.5.2 更新内容：\n• 🎨 优化插件图标显示效果",
+            "sha256": "f003fb052c4b6877ef30c9c626bbab765c62532cd6845fbf26f3ce22f51513a8",
+            "url": "https://github.com/thirteenkai/bob-plugin-qwen-tts/releases/download/v1.5.2/qwen-tts.bobplugin",
+            "minBobVersion": "1.6.0"
+        },
+        {
             "version": "1.5.1",
             "desc": "v1.5.1 更新内容：\n• 🎨 更新插件图标",
             "sha256": "cc5e17579285e224880d1316b1e776c3ecd53b02b9f5b4e60bc6e7efa5ea07a5",
