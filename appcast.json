@@ -2,6 +2,13 @@
     "identifier": "com.qwen.tts.bob.plugin",
     "versions": [
         {
+            "version": "1.5.5",
+            "desc": "v1.5.5 更新内容：\n• 🛡️ 按官方非实时音色列表校验音色，移除未在当前非实时接口列出的 Ebana\n• 🧠 旧 qwen-tts 仅保留历史配置兼容，不兼容时自动切换到 Qwen3 Flash\n• 🧹 从模型菜单隐藏旧 qwen-tts，默认使用 Qwen3 Flash 系列\n• 🎚️ 将语速改为语速倾向，避免误导为官方精准 speech_rate\n• 🗣️ 方言音色中文输入改用 Auto 语言类型，避免 Sunny 等音色报不支持语言",
+            "sha256": "8d589c2afcb0b99bd59a92bfbae856c7f6d7b91f69b2bee14356d12c07489a36",
+            "url": "https://github.com/thirteenkai/bob-plugin-qwen-tts/releases/download/v1.5.5/qwen-tts.bobplugin",
+            "minBobVersion": "1.6.0"
+        },
+        {
             "version": "1.5.4",
             "desc": "v1.5.4 更新内容：\n• 🎚️ 新增预设语速与自定义语速\n• 🧠 Qwen 语速仅在支持 Instruct 的音色上启用，避免不支持的 speech_rate 参数",
             "sha256": "fb48e6343c3ceadad337d4241e069c58d4de32c068a32cf19cad2818f034b3a4",

@@ -5,6 +5,8 @@
 
 var lang = require('./lang.js');
 
+var PLUGIN_BUILD_ID = '1.5.5-sunny-autoswitch-20260706';
+
 // API 地域配置
 var API_ENDPOINTS = {
     'cn': 'https://dashscope.aliyuncs.com',
@@ -33,12 +35,37 @@ var ERROR_MESSAGES = {
     'InternalError': '阿里云服务内部错误'
 };
 
-var FLASH_ONLY_VOICES = [
-    'Momo', 'Vivian', 'Moon', 'Maia', 'Kai', 'Nofish', 'Bella', 'Jennifer',
-    'Ryan', 'Katerina', 'Aiden', 'Eldric Sage', 'Mia', 'Mochi', 'Bellona',
-    'Vincent', 'Bunny', 'Neil', 'Elias', 'Arthur', 'Nini', 'Ebana', 'Seren',
-    'Pip', 'Stella', 'Bodega', 'Sonrisa', 'Alek', 'Dolce', 'Sohee', 'Ono Anna',
-    'Lenn', 'Emilien', 'Andre', 'Radio Gol', 'Rocky', 'Kiki'
+function getFriendlyApiError(data) {
+    var message = data && data.message ? data.message : '';
+
+    if (message.indexOf('input.voice') !== -1) {
+        return '当前模型不支持所选音色，请改用 Qwen3-TTS-Flash 或更换音色';
+    }
+    if (message.indexOf('language') !== -1 || message.indexOf('language_type') !== -1) {
+        return '当前音色不支持该语言，请更换音色或语言';
+    }
+    return ERROR_MESSAGES[data.code] || message || data.code;
+}
+
+var NON_REALTIME_SUPPORTED_VOICES = [
+    'Cherry', 'Serena', 'Ethan', 'Chelsie', 'Momo', 'Vivian', 'Moon', 'Maia',
+    'Kai', 'Nofish', 'Bella', 'Jennifer', 'Ryan', 'Katerina', 'Aiden',
+    'Eldric Sage', 'Mia', 'Mochi', 'Bellona', 'Vincent', 'Bunny', 'Neil',
+    'Elias', 'Arthur', 'Nini', 'Seren', 'Pip', 'Stella', 'Bodega', 'Sonrisa',
+    'Alek', 'Dolce', 'Sohee', 'Ono Anna', 'Lenn', 'Emilien', 'Andre',
+    'Radio Gol', 'Jada', 'Dylan', 'Li', 'Marcus', 'Roy', 'Peter', 'Sunny',
+    'Eric', 'Rocky', 'Kiki'
+];
+
+// The qwen-tts alias currently rejects dialect voices even though versioned
+// legacy models list wider support. Keep this list tied to observed API errors.
+var QWEN_TTS_SUPPORTED_VOICES = [
+    'Cherry', 'Serena', 'Ethan', 'Chelsie'
+];
+
+var DIALECT_VOICES = [
+    'Dylan', 'Jada', 'Sunny', 'Eric', 'Marcus', 'Li', 'Peter', 'Roy', 'Kiki',
+    'Rocky'
 ];
 
 var INSTRUCT_SUPPORTED_VOICES = [
@@ -48,8 +75,27 @@ var INSTRUCT_SUPPORTED_VOICES = [
     'Stella'
 ];
 
+function isNonRealtimeSupportedVoice(voice) {
+    return NON_REALTIME_SUPPORTED_VOICES.indexOf(voice) !== -1;
+}
+
+function isQwenTtsSupportedVoice(voice) {
+    return QWEN_TTS_SUPPORTED_VOICES.indexOf(voice) !== -1;
+}
+
+function isDialectVoice(voice) {
+    return DIALECT_VOICES.indexOf(voice) !== -1;
+}
+
 function isInstructSupportedVoice(voice) {
     return INSTRUCT_SUPPORTED_VOICES.indexOf(voice) !== -1;
+}
+
+function getLanguageTypeForVoice(bobLang, voice) {
+    if (isDialectVoice(voice) && (bobLang === 'zh-Hans' || bobLang === 'zh-Hant')) {
+        return 'Auto';
+    }
+    return lang.getQwenLangType(bobLang);
 }
 
 function parseSpeechRateValue(value) {
@@ -106,6 +152,49 @@ function getQwenSpeedInstruction(rate) {
         return '请用较快的语速朗读，保持吐字清晰。';
     }
     return '请用很快的语速朗读，但保持吐字清晰、不要吞字。';
+}
+
+function resolveModelForVoiceAndSpeed(model, voice, speechRate) {
+    var resolvedModel = model || 'qwen3-tts-flash';
+    var speedInstruction = getQwenSpeedInstruction(speechRate);
+
+    if (!isNonRealtimeSupportedVoice(voice)) {
+        return {
+            error: {
+                message: '当前音色不在官方非实时接口支持列表',
+                addition: '请改用插件菜单中的其他音色'
+            }
+        };
+    }
+
+    if (speedInstruction && !isInstructSupportedVoice(voice)) {
+        return {
+            error: {
+                message: '当前音色不支持 Qwen 语速倾向控制',
+                addition: '请改用支持 Instruct 的音色，或将语速倾向保持为 1.0x'
+            }
+        };
+    }
+
+    if (resolvedModel === 'qwen-tts' && !isQwenTtsSupportedVoice(voice)) {
+        $log.info('Auto-switching model to qwen3-tts-flash because qwen-tts does not support voice: ' + voice);
+        resolvedModel = 'qwen3-tts-flash';
+    }
+
+    if (resolvedModel === 'qwen3-tts-instruct-flash' && !isInstructSupportedVoice(voice)) {
+        $log.info('Auto-switching model to qwen3-tts-flash because instruct model does not support voice: ' + voice);
+        resolvedModel = 'qwen3-tts-flash';
+    }
+
+    if (speedInstruction && resolvedModel !== 'qwen3-tts-instruct-flash') {
+        $log.info('Auto-switching model to qwen3-tts-instruct-flash for speech rate tendency control');
+        resolvedModel = 'qwen3-tts-instruct-flash';
+    }
+
+    return {
+        model: resolvedModel,
+        speedInstruction: speedInstruction
+    };
 }
 
 /**
@@ -186,42 +275,35 @@ function tts(query, completion) {
         return;
     }
 
-    // 智能模型切换
-    if (FLASH_ONLY_VOICES.indexOf(voice) !== -1 && model !== 'qwen3-tts-flash' && model !== 'qwen3-tts-instruct-flash') {
-        $log.info('Auto-switching model to qwen3-tts-flash for voice: ' + voice);
-        model = 'qwen3-tts-flash';
-    }
-
-    var speedInstruction = getQwenSpeedInstruction(speechRate);
-    if ((speedInstruction || model === 'qwen3-tts-instruct-flash') && !isInstructSupportedVoice(voice)) {
+    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate);
+    if (modelResolution.error) {
         completion({
             error: {
                 type: 'param',
-                message: '当前音色不支持 Qwen 语速控制',
-                addition: '请改用支持 Instruct 的音色，或将语速保持为 1.0x'
+                message: modelResolution.error.message,
+                addition: modelResolution.error.addition
             }
         });
         return;
     }
 
-    if (speedInstruction && model !== 'qwen3-tts-instruct-flash') {
-        $log.info('Auto-switching model to qwen3-tts-instruct-flash for speech rate control');
-        model = 'qwen3-tts-instruct-flash';
-    }
+    model = modelResolution.model;
 
     requestBody = {
         model: model,
         input: {
             text: text,
             voice: voice,
-            language_type: lang.getQwenLangType(query.lang)
+            language_type: getLanguageTypeForVoice(query.lang, voice)
         }
     };
 
-    if (speedInstruction) {
-        requestBody.input.instructions = speedInstruction;
+    if (modelResolution.speedInstruction) {
+        requestBody.input.instructions = modelResolution.speedInstruction;
         requestBody.input.optimize_instructions = true;
     }
+
+    $log.info('Qwen TTS build=' + PLUGIN_BUILD_ID + ', request model=' + requestBody.model + ', voice=' + requestBody.input.voice + ', language_type=' + requestBody.input.language_type + ', has_instructions=' + Boolean(requestBody.input.instructions));
 
     // 2. 发送请求 (包含重试逻辑)
     sendRequest(url, apiKey, requestBody, 0, completion);
@@ -269,7 +351,7 @@ function sendRequest(url, apiKey, body, retryCount, completion) {
             // API 错误处理
             if (data.code && data.code !== '200' && data.code !== 200) {
                 // 尝试映射为中文错误信息
-                var friendlyMsg = ERROR_MESSAGES[data.code] || data.message || data.code;
+                var friendlyMsg = getFriendlyApiError(data);
 
                 completion({
                     error: {
@@ -376,29 +458,35 @@ function pluginValidate(completion) {
         return;
     }
 
-    var speedInstruction = getQwenSpeedInstruction(speechRate);
-    if ((speedInstruction || model === 'qwen3-tts-instruct-flash') && !isInstructSupportedVoice(voice)) {
+    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate);
+    if (modelResolution.error) {
         completion({
             result: false,
             error: {
                 type: 'param',
-                message: '当前音色不支持 Qwen 语速控制'
+                message: modelResolution.error.message
             }
         });
         return;
     }
 
-    if (speedInstruction && model !== 'qwen3-tts-instruct-flash') {
-        model = 'qwen3-tts-instruct-flash';
-    }
+    model = modelResolution.model;
 
     var validateBody = {
         model: model,
         input: {
-            text: 'test',
-            voice: voice
+            text: '支持语言',
+            voice: voice,
+            language_type: getLanguageTypeForVoice('zh-Hans', voice)
         }
     };
+
+    if (modelResolution.speedInstruction) {
+        validateBody.input.instructions = modelResolution.speedInstruction;
+        validateBody.input.optimize_instructions = true;
+    }
+
+    $log.info('Qwen TTS build=' + PLUGIN_BUILD_ID + ', validate model=' + validateBody.model + ', voice=' + validateBody.input.voice + ', language_type=' + validateBody.input.language_type + ', has_instructions=' + Boolean(validateBody.input.instructions));
 
     $http.request({
         method: 'POST',
@@ -435,11 +523,14 @@ function pluginValidate(completion) {
 
             var data = resp.data;
             if (data.code && data.code !== '200' && data.code !== 200) {
+                var friendlyMsg = getFriendlyApiError(data);
+
                 completion({
                     result: false,
                     error: {
                         type: 'api',
-                        message: 'API 错误: ' + (data.message || data.code)
+                        message: friendlyMsg,
+                        addition: '错误代码: ' + data.code
                     }
                 });
                 return;

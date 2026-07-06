@@ -1,6 +1,6 @@
 {
     "identifier": "com.qwen.tts.bob.plugin",
-    "version": "1.5.4",
+    "version": "1.5.5",
     "category": "tts",
     "name": "Qwen TTS",
     "summary": "使用阿里云 Qwen3-TTS-Flash 模型进行语音合成",
@@ -43,19 +43,15 @@
             "type": "menu",
             "title": "模型",
             "defaultValue": "qwen3-tts-flash",
-            "desc": "选择 TTS 模型。注：部分新音色仅支持 Flash 模型，如选择旧模型会自动切换",
+            "desc": "选择 TTS 模型。旧 Qwen-TTS 已隐藏，仅兼容历史配置",
             "menuValues": [
                 {
-                    "title": "Qwen3-TTS-Flash (推荐)",
+                    "title": "Qwen3-TTS-Flash (推荐/兼容最多)",
                     "value": "qwen3-tts-flash"
                 },
                 {
-                    "title": "Qwen3-TTS-Instruct-Flash (支持语速)",
+                    "title": "Qwen3-TTS-Instruct-Flash (语速倾向)",
                     "value": "qwen3-tts-instruct-flash"
-                },
-                {
-                    "title": "Qwen-TTS",
-                    "value": "qwen-tts"
                 }
             ]
         },
@@ -64,10 +60,10 @@
             "type": "menu",
             "title": "语音角色",
             "defaultValue": "Ethan",
-            "desc": "选择语音角色（支持45+种官方音色）",
+            "desc": "选择语音角色（支持48种官方非实时音色；部分音色支持语速倾向）",
             "menuValues": [
                 {
-                    "title": "【精选推荐】",
+                    "title": "【精选推荐｜支持语速倾向】",
                     "value": "_separator_1"
                 },
                 {
@@ -145,10 +141,6 @@
                 {
                     "title": "Sohee/素熙 (韩风/温柔开朗)",
                     "value": "Sohee"
-                },
-                {
-                    "title": "Ebana/诡婆婆 (恐怖/悬疑)",
-                    "value": "Ebana"
                 },
                 {
                     "title": "【普通话-男声】",
@@ -287,9 +279,9 @@
         {
             "identifier": "speechRate",
             "type": "menu",
-            "title": "语速",
+            "title": "语速倾向",
             "defaultValue": "1.0",
-            "desc": "Qwen 语速为 Instruct 近似控制，仅支持部分音色",
+            "desc": "非精准倍速。选择非 1.0 时，会对支持的音色自动使用 Instruct 模型近似控制",
             "menuValues": [
                 {
                     "title": "0.5x 慢速",
@@ -320,8 +312,8 @@
         {
             "identifier": "customSpeechRate",
             "type": "text",
-            "title": "自定义语速",
-            "desc": "输入 0.5-2.0 之间的任意值。Qwen 会映射为近似语速指令",
+            "title": "自定义语速倾向",
+            "desc": "输入 0.5-2.0 之间的任意值。插件会映射为慢读/快读指令，不是官方 speech_rate",
             "defaultValue": "",
             "textConfig": {
                 "type": "visible",
