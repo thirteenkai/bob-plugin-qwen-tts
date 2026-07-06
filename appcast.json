@@ -2,6 +2,13 @@
     "identifier": "com.qwen.tts.bob.plugin",
     "versions": [
         {
+            "version": "1.5.4",
+            "desc": "v1.5.4 更新内容：\n• 🎚️ 新增预设语速与自定义语速\n• 🧠 Qwen 语速仅在支持 Instruct 的音色上启用，避免不支持的 speech_rate 参数",
+            "sha256": "fb48e6343c3ceadad337d4241e069c58d4de32c068a32cf19cad2818f034b3a4",
+            "url": "https://github.com/thirteenkai/bob-plugin-qwen-tts/releases/download/v1.5.4/qwen-tts.bobplugin",
+            "minBobVersion": "1.6.0"
+        },
+        {
             "version": "1.5.3",
             "desc": "v1.5.3 更新内容：\n• 🛡️ 增加文本长度检测，优化长文体验\n• 🗣️ 错误提示汉化（余额/Key等报错）\n• 🔄 增加弱网自动重试机制",
             "sha256": "72c906eba1389deb0e19a0e372f81db7b8771e8f42a45cf63de91cc7c78c145e",

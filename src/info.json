@@ -1,6 +1,6 @@
 {
     "identifier": "com.qwen.tts.bob.plugin",
-    "version": "1.5.3",
+    "version": "1.5.4",
     "category": "tts",
     "name": "Qwen TTS",
     "summary": "使用阿里云 Qwen3-TTS-Flash 模型进行语音合成",
@@ -48,6 +48,10 @@
                 {
                     "title": "Qwen3-TTS-Flash (推荐)",
                     "value": "qwen3-tts-flash"
+                },
+                {
+                    "title": "Qwen3-TTS-Instruct-Flash (支持语速)",
+                    "value": "qwen3-tts-instruct-flash"
                 },
                 {
                     "title": "Qwen-TTS",
@@ -279,6 +283,50 @@
                     "value": "Radio Gol"
                 }
             ]
+        },
+        {
+            "identifier": "speechRate",
+            "type": "menu",
+            "title": "语速",
+            "defaultValue": "1.0",
+            "desc": "Qwen 语速为 Instruct 近似控制，仅支持部分音色",
+            "menuValues": [
+                {
+                    "title": "0.5x 慢速",
+                    "value": "0.5"
+                },
+                {
+                    "title": "0.75x 较慢",
+                    "value": "0.75"
+                },
+                {
+                    "title": "1.0x 正常 (默认)",
+                    "value": "1.0"
+                },
+                {
+                    "title": "1.25x 较快",
+                    "value": "1.25"
+                },
+                {
+                    "title": "1.5x 快速",
+                    "value": "1.5"
+                },
+                {
+                    "title": "2.0x 极速",
+                    "value": "2.0"
+                }
+            ]
+        },
+        {
+            "identifier": "customSpeechRate",
+            "type": "text",
+            "title": "自定义语速",
+            "desc": "输入 0.5-2.0 之间的任意值。Qwen 会映射为近似语速指令",
+            "defaultValue": "",
+            "textConfig": {
+                "type": "visible",
+                "placeholderText": "留空使用预设，例如 0.8 或 1.3"
+            }
         },
         {
             "identifier": "timeout",

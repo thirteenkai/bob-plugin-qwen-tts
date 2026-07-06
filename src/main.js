@@ -11,7 +11,7 @@ var API_ENDPOINTS = {
     'intl': 'https://dashscope-intl.aliyuncs.com'
 };
 
-var API_PATH = '/api/v1/services/aigc/multimodal-generation/generation';
+var QWEN_API_PATH = '/api/v1/services/aigc/multimodal-generation/generation';
 
 /**
  * 返回支持的语言列表
@@ -32,6 +32,81 @@ var ERROR_MESSAGES = {
     'BadRequest': '请求参数错误',
     'InternalError': '阿里云服务内部错误'
 };
+
+var FLASH_ONLY_VOICES = [
+    'Momo', 'Vivian', 'Moon', 'Maia', 'Kai', 'Nofish', 'Bella', 'Jennifer',
+    'Ryan', 'Katerina', 'Aiden', 'Eldric Sage', 'Mia', 'Mochi', 'Bellona',
+    'Vincent', 'Bunny', 'Neil', 'Elias', 'Arthur', 'Nini', 'Ebana', 'Seren',
+    'Pip', 'Stella', 'Bodega', 'Sonrisa', 'Alek', 'Dolce', 'Sohee', 'Ono Anna',
+    'Lenn', 'Emilien', 'Andre', 'Radio Gol', 'Rocky', 'Kiki'
+];
+
+var INSTRUCT_SUPPORTED_VOICES = [
+    'Cherry', 'Serena', 'Ethan', 'Chelsie', 'Momo', 'Vivian', 'Moon', 'Maia',
+    'Kai', 'Nofish', 'Bella', 'Eldric Sage', 'Mia', 'Mochi', 'Bellona',
+    'Vincent', 'Bunny', 'Neil', 'Elias', 'Arthur', 'Nini', 'Seren', 'Pip',
+    'Stella'
+];
+
+function isInstructSupportedVoice(voice) {
+    return INSTRUCT_SUPPORTED_VOICES.indexOf(voice) !== -1;
+}
+
+function parseSpeechRateValue(value) {
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+    var rawValue = String(value).trim();
+
+    if (!/^\d+(\.\d+)?$/.test(rawValue)) {
+        return null;
+    }
+    var rate = parseFloat(rawValue);
+    if (rate < 0.5 || rate > 2.0) {
+        return null;
+    }
+    return rate;
+}
+
+function getSpeechRateResult() {
+    var customRate = $option.customSpeechRate && $option.customSpeechRate.trim();
+    var rawRate = customRate ? customRate : $option.speechRate;
+    var rate = parseSpeechRateValue(rawRate);
+
+    if (customRate && rate === null) {
+        return {
+            error: '自定义语速必须是 0.5-2.0 之间的数字'
+        };
+    }
+    if (!customRate && rawRate && rate === null) {
+        return {
+            error: '语速必须是 0.5-2.0 之间的数字'
+        };
+    }
+    return {
+        rate: rate
+    };
+}
+
+function getQwenSpeedInstruction(rate) {
+    if (!rate || rate === 1.0) {
+        return '';
+    }
+
+    if (rate <= 0.6) {
+        return '请用很慢的语速朗读，保持自然停顿。';
+    }
+    if (rate < 1.0) {
+        return '请用较慢的语速朗读，保持自然停顿。';
+    }
+    if (rate <= 1.3) {
+        return '请用略快的语速朗读，保持吐字清晰。';
+    }
+    if (rate < 1.8) {
+        return '请用较快的语速朗读，保持吐字清晰。';
+    }
+    return '请用很快的语速朗读，但保持吐字清晰、不要吞字。';
+}
 
 /**
  * 语音合成主函数
@@ -69,6 +144,8 @@ function tts(query, completion) {
     var region = $option.region || 'cn';
     var model = $option.model || 'qwen3-tts-flash';
     var voice = $option.voice || 'Ethan';
+    var speechRateResult = getSpeechRateResult();
+    var speechRate = speechRateResult.rate;
 
     // 检查 API Key
     if (!apiKey) {
@@ -82,31 +159,69 @@ function tts(query, completion) {
         return;
     }
 
-    // Flash 模型独占音色列表
-    var FLASH_ONLY_VOICES = [
-        'Momo', 'Vivian', 'Moon', 'Maia', 'Kai', 'Nofish', 'Bella', 'Jennifer',
-        'Ryan', 'Katerina', 'Aiden', 'Eldric Sage', 'Mia', 'Mochi', 'Bellona',
-        'Vincent', 'Bunny', 'Neil', 'Elias', 'Arthur', 'Nini', 'Ebana', 'Seren',
-        'Pip', 'Stella', 'Bodega', 'Sonrisa', 'Alek', 'Dolce', 'Sohee', 'Ono Anna',
-        'Lenn', 'Emilien', 'Andre', 'Radio Gol', 'Rocky', 'Kiki'
-    ];
-
-    // 智能模型切换
-    if (FLASH_ONLY_VOICES.indexOf(voice) !== -1 && model !== 'qwen3-tts-flash') {
-        $log.info('Auto-switching model to qwen3-tts-flash for voice: ' + voice);
-        model = 'qwen3-tts-flash';
+    if (speechRateResult.error) {
+        completion({
+            error: {
+                type: 'param',
+                message: speechRateResult.error,
+                addition: '请填写 0.5-2.0，例如 0.8、1.0、1.3'
+            }
+        });
+        return;
     }
 
     // 构建请求
     var baseUrl = API_ENDPOINTS[region] || API_ENDPOINTS['cn'];
-    var url = baseUrl + API_PATH;
-    var requestBody = {
+    var url = baseUrl + QWEN_API_PATH;
+    var requestBody = null;
+
+    if (voice.indexOf('_separator_') === 0) {
+        completion({
+            error: {
+                type: 'param',
+                message: '请选择具体的语音角色',
+                addition: '当前选中的是分组标题，不是可用音色'
+            }
+        });
+        return;
+    }
+
+    // 智能模型切换
+    if (FLASH_ONLY_VOICES.indexOf(voice) !== -1 && model !== 'qwen3-tts-flash' && model !== 'qwen3-tts-instruct-flash') {
+        $log.info('Auto-switching model to qwen3-tts-flash for voice: ' + voice);
+        model = 'qwen3-tts-flash';
+    }
+
+    var speedInstruction = getQwenSpeedInstruction(speechRate);
+    if ((speedInstruction || model === 'qwen3-tts-instruct-flash') && !isInstructSupportedVoice(voice)) {
+        completion({
+            error: {
+                type: 'param',
+                message: '当前音色不支持 Qwen 语速控制',
+                addition: '请改用支持 Instruct 的音色，或将语速保持为 1.0x'
+            }
+        });
+        return;
+    }
+
+    if (speedInstruction && model !== 'qwen3-tts-instruct-flash') {
+        $log.info('Auto-switching model to qwen3-tts-instruct-flash for speech rate control');
+        model = 'qwen3-tts-instruct-flash';
+    }
+
+    requestBody = {
         model: model,
         input: {
             text: text,
-            voice: voice
+            voice: voice,
+            language_type: lang.getQwenLangType(query.lang)
         }
     };
+
+    if (speedInstruction) {
+        requestBody.input.instructions = speedInstruction;
+        requestBody.input.optimize_instructions = true;
+    }
 
     // 2. 发送请求 (包含重试逻辑)
     sendRequest(url, apiKey, requestBody, 0, completion);
@@ -234,7 +349,56 @@ function pluginValidate(completion) {
     var region = $option.region || 'cn';
     var model = $option.model || 'qwen3-tts-flash';
     var baseUrl = API_ENDPOINTS[region] || API_ENDPOINTS['cn'];
-    var url = baseUrl + API_PATH;
+    var url = baseUrl + QWEN_API_PATH;
+    var voice = $option.voice || 'Ethan';
+    var speechRateResult = getSpeechRateResult();
+    var speechRate = speechRateResult.rate;
+
+    if (speechRateResult.error) {
+        completion({
+            result: false,
+            error: {
+                type: 'param',
+                message: speechRateResult.error
+            }
+        });
+        return;
+    }
+
+    if (voice.indexOf('_separator_') === 0) {
+        completion({
+            result: false,
+            error: {
+                type: 'param',
+                message: '请选择具体的语音角色'
+            }
+        });
+        return;
+    }
+
+    var speedInstruction = getQwenSpeedInstruction(speechRate);
+    if ((speedInstruction || model === 'qwen3-tts-instruct-flash') && !isInstructSupportedVoice(voice)) {
+        completion({
+            result: false,
+            error: {
+                type: 'param',
+                message: '当前音色不支持 Qwen 语速控制'
+            }
+        });
+        return;
+    }
+
+    if (speedInstruction && model !== 'qwen3-tts-instruct-flash') {
+        model = 'qwen3-tts-instruct-flash';
+    }
+
+    var validateBody = {
+        model: model,
+        input: {
+            text: 'test',
+            voice: voice
+        }
+    };
 
     $http.request({
         method: 'POST',
@@ -243,13 +407,7 @@ function pluginValidate(completion) {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + apiKey
         },
-        body: {
-            model: model,
-            input: {
-                text: 'test',
-                voice: 'Ethan'
-            }
-        },
+        body: validateBody,
         handler: function (resp) {
             if (resp.error) {
                 var statusCode = resp.response ? resp.response.statusCode : 0;
