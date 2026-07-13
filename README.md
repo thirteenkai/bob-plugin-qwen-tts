@@ -54,9 +54,9 @@ Bob 负责获取和展示文本，DashScope 负责生成语音，这个插件负
 
 ### 2. 准备 API Key
 
-1. 打开[阿里云百炼控制台](https://dashscope.console.aliyun.com/)。
-2. 登录后创建 DashScope API Key。
-3. 在 Bob 的 Qwen TTS 服务配置中填写 API Key。
+1. 打开阿里云官方的 [API Key 获取说明](https://help.aliyun.com/zh/model-studio/get-api-key)。
+2. 按准备使用的地域创建 DashScope API Key。北京与新加坡的 API Key 不通用。
+3. 在 Bob 中选择相同的 API 地域，并填写对应的 API Key。
 
 ### 3. 完成配置
 
@@ -94,7 +94,7 @@ Bob 负责获取和展示文本，DashScope 负责生成语音，这个插件负
 
 当前插件使用非实时 HTTP 接口，该接口没有官方 `speech_rate` 参数。插件通过 `instructions` 在受支持的 Instruct 音色上近似控制语速，因此这里使用“语速倾向”，而不是“精确语速”。
 
-如果所选音色不支持 Instruct，插件会保持兼容模型，并提示更换音色或恢复为 1.0x。
+如果语速倾向为 1.0x，而所选音色不支持 Instruct，插件会自动回退到 `qwen3-tts-flash`。如果语速倾向不是 1.0x，插件会停止请求，并提示更换支持 Instruct 的音色或恢复为 1.0x。
 
 ## 音色目录
 
@@ -158,7 +158,7 @@ Bob 负责获取和展示文本，DashScope 负责生成语音，这个插件负
 
 ## 使用限制与排查顺序
 
-- 单次文本最多 600 个字符，超过后插件会直接提示。
+- 当前可选 Qwen3 模型的单次输入上限为 600 个字符；插件会在请求前拦截超长文本并提示分段朗读。限制依据见[阿里云 Qwen-TTS API 文档](https://help.aliyun.com/zh/model-studio/qwen-tts-api)。
 - 插件依赖网络和 DashScope 服务状态，不能离线工作。
 - API Key、账户余额、接口权限和调用费用由 DashScope 管理。
 - API Key 不可用时，先确认所选地域，再确认密钥状态和账户权限。
@@ -167,7 +167,7 @@ Bob 负责获取和展示文本，DashScope 负责生成语音，这个插件负
 
 ## 版本记录
 
-当前版本为 v1.5.6。完整变更记录、历史安装包和文件校验信息见 [GitHub Releases](https://github.com/thirteenkai/bob-plugin-qwen-tts/releases)。
+最新版本、历史安装包、变更记录和文件校验信息见 [GitHub Releases](https://github.com/thirteenkai/bob-plugin-qwen-tts/releases)。
 
 ## 许可证
 
