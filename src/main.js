@@ -5,7 +5,7 @@
 
 var lang = require('./lang.js');
 
-var PLUGIN_BUILD_ID = '1.5.5-sunny-autoswitch-20260706';
+var PLUGIN_BUILD_ID = '1.5.6-compatibility-hardening-20260713';
 
 // API 地域配置
 var API_ENDPOINTS = {
@@ -154,7 +154,7 @@ function getQwenSpeedInstruction(rate) {
     return '请用很快的语速朗读，但保持吐字清晰、不要吞字。';
 }
 
-function resolveModelForVoiceAndSpeed(model, voice, speechRate) {
+function resolveModelForVoiceAndSpeed(model, voice, speechRate, region) {
     var resolvedModel = model || 'qwen3-tts-flash';
     var speedInstruction = getQwenSpeedInstruction(speechRate);
 
@@ -174,6 +174,11 @@ function resolveModelForVoiceAndSpeed(model, voice, speechRate) {
                 addition: '请改用支持 Instruct 的音色，或将语速倾向保持为 1.0x'
             }
         };
+    }
+
+    if (resolvedModel === 'qwen-tts' && region === 'intl') {
+        $log.info('Auto-switching model to qwen3-tts-flash because qwen-tts is unavailable in the international region');
+        resolvedModel = 'qwen3-tts-flash';
     }
 
     if (resolvedModel === 'qwen-tts' && !isQwenTtsSupportedVoice(voice)) {
@@ -221,7 +226,7 @@ function tts(query, completion) {
     if (!lang.langMap.has(query.lang)) {
         completion({
             error: {
-                type: 'unsupportLanguage',
+                type: 'unsupportedLanguage',
                 message: '不支持的语言: ' + query.lang
             }
         });
@@ -275,7 +280,7 @@ function tts(query, completion) {
         return;
     }
 
-    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate);
+    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate, region);
     if (modelResolution.error) {
         completion({
             error: {
@@ -312,6 +317,90 @@ function tts(query, completion) {
 /**
  * 发送 HTTP 请求 (带重试)
  */
+function getResponseData(resp) {
+    if (!resp || !resp.data || typeof resp.data !== 'object') {
+        return null;
+    }
+    return resp.data;
+}
+
+function getAudioUrl(data) {
+    if (data && data.output && data.output.audio && data.output.audio.url) {
+        return data.output.audio.url;
+    }
+    if (data && data.output && data.output.url) {
+        return data.output.url;
+    }
+    return null;
+}
+
+function isApiError(data) {
+    var codeFailed = data.code && data.code !== '200' && data.code !== 200;
+    var statusFailed = data.status_code && data.status_code !== '200' && data.status_code !== 200;
+    return Boolean(codeFailed || statusFailed);
+}
+
+function isAuthenticationApiError(data) {
+    return Boolean(data && (
+        data.code === 'InvalidApiKey' ||
+        data.status_code === 401 || data.status_code === '401' ||
+        data.status_code === 403 || data.status_code === '403'
+    ));
+}
+
+function getApiErrorIdentifier(data) {
+    return data.code || data.status_code || 'unknown';
+}
+
+function getNetworkErrorAddition(error) {
+    if (!error) {
+        return '';
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    return error.message || error.localizedDescription || error.debugMessage || '';
+}
+
+function completeHttpError(statusCode, error, completion, validationMode) {
+    if (statusCode === 401 || statusCode === 403) {
+        var authResult = {
+            error: {
+                type: 'secretKey',
+                message: 'API Key 无效、已过期或与所选地域不匹配',
+                troubleshootingLink: 'https://dashscope.console.aliyun.com/'
+            }
+        };
+        if (validationMode) {
+            authResult.result = false;
+        }
+        completion(authResult);
+        return;
+    }
+
+    var message = statusCode === 429
+        ? '请求频率过高触发限流，请稍后再试'
+        : (validationMode ? '验证请求失败' : '接口请求失败');
+
+    if (statusCode) {
+        message += ' - HTTP ' + statusCode;
+    } else {
+        message += ' - 网络异常';
+    }
+
+    var networkResult = {
+        error: {
+            type: 'network',
+            message: message,
+            addition: getNetworkErrorAddition(error)
+        }
+    };
+    if (validationMode) {
+        networkResult.result = false;
+    }
+    completion(networkResult);
+}
+
 function sendRequest(url, apiKey, body, retryCount, completion) {
     var MAX_RETRIES = 1; // 最大自动重试次数
 
@@ -325,8 +414,14 @@ function sendRequest(url, apiKey, body, retryCount, completion) {
         body: body,
         handler: function (resp) {
             // 网络错误处理 (自动重试)
-            if (resp.error) {
+            if (resp && resp.error) {
                 var statusCode = resp.response ? resp.response.statusCode : 0;
+                var errorData = getResponseData(resp);
+
+                if (isAuthenticationApiError(errorData)) {
+                    completeHttpError(401, resp.error, completion, false);
+                    return;
+                }
 
                 // 如果是网络超时或 5xx 错误，且未达到最大重试次数，则重试
                 if ((statusCode === 0 || statusCode >= 500) && retryCount < MAX_RETRIES) {
@@ -335,21 +430,30 @@ function sendRequest(url, apiKey, body, retryCount, completion) {
                     return;
                 }
 
-                var errorType = (statusCode >= 400 && statusCode < 500) ? 'param' : 'api';
+                completeHttpError(statusCode, resp.error, completion, false);
+                return;
+            }
+
+            var data = getResponseData(resp);
+
+            if (!data) {
                 completion({
                     error: {
-                        type: errorType,
-                        message: '接口请求错误 - HTTP ' + statusCode,
-                        addition: JSON.stringify(resp.error)
+                        type: 'api',
+                        message: '接口返回了无效响应',
+                        addition: '响应中没有可解析的 JSON 数据'
                     }
                 });
                 return;
             }
 
-            var data = resp.data;
-
             // API 错误处理
-            if (data.code && data.code !== '200' && data.code !== 200) {
+            if (isAuthenticationApiError(data)) {
+                completeHttpError(401, null, completion, false);
+                return;
+            }
+
+            if (isApiError(data)) {
                 // 尝试映射为中文错误信息
                 var friendlyMsg = getFriendlyApiError(data);
 
@@ -357,19 +461,14 @@ function sendRequest(url, apiKey, body, retryCount, completion) {
                     error: {
                         type: 'api',
                         message: friendlyMsg,
-                        addition: '错误代码: ' + data.code
+                        addition: '错误代码: ' + getApiErrorIdentifier(data)
                     }
                 });
                 return;
             }
 
             // 提取音频
-            var audioUrl = null;
-            if (data.output && data.output.audio && data.output.audio.url) {
-                audioUrl = data.output.audio.url;
-            } else if (data.output && data.output.url) {
-                audioUrl = data.output.url;
-            }
+            var audioUrl = getAudioUrl(data);
 
             if (!audioUrl) {
                 completion({
@@ -458,7 +557,7 @@ function pluginValidate(completion) {
         return;
     }
 
-    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate);
+    var modelResolution = resolveModelForVoiceAndSpeed(model, voice, speechRate, region);
     if (modelResolution.error) {
         completion({
             result: false,
@@ -497,32 +596,35 @@ function pluginValidate(completion) {
         },
         body: validateBody,
         handler: function (resp) {
-            if (resp.error) {
+            if (resp && resp.error) {
                 var statusCode = resp.response ? resp.response.statusCode : 0;
-
-                if (statusCode === 401 || statusCode === 403) {
-                    completion({
-                        result: false,
-                        error: {
-                            type: 'secretKey',
-                            message: 'API Key 无效或已过期',
-                            troubleshootingLink: 'https://dashscope.console.aliyun.com/'
-                        }
-                    });
-                } else {
-                    completion({
-                        result: false,
-                        error: {
-                            type: 'api',
-                            message: '验证失败 - HTTP ' + statusCode
-                        }
-                    });
+                var errorData = getResponseData(resp);
+                if (isAuthenticationApiError(errorData)) {
+                    completeHttpError(401, resp.error, completion, true);
+                    return;
                 }
+                completeHttpError(statusCode, resp.error, completion, true);
                 return;
             }
 
-            var data = resp.data;
-            if (data.code && data.code !== '200' && data.code !== 200) {
+            var data = getResponseData(resp);
+            if (!data) {
+                completion({
+                    result: false,
+                    error: {
+                        type: 'api',
+                        message: '验证失败：接口返回了无效响应'
+                    }
+                });
+                return;
+            }
+
+            if (isAuthenticationApiError(data)) {
+                completeHttpError(401, null, completion, true);
+                return;
+            }
+
+            if (isApiError(data)) {
                 var friendlyMsg = getFriendlyApiError(data);
 
                 completion({
@@ -530,7 +632,18 @@ function pluginValidate(completion) {
                     error: {
                         type: 'api',
                         message: friendlyMsg,
-                        addition: '错误代码: ' + data.code
+                        addition: '错误代码: ' + getApiErrorIdentifier(data)
+                    }
+                });
+                return;
+            }
+
+            if (!getAudioUrl(data)) {
+                completion({
+                    result: false,
+                    error: {
+                        type: 'api',
+                        message: '验证失败：响应中没有音频 URL'
                     }
                 });
                 return;

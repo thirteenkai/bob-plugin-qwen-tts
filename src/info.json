@@ -1,6 +1,6 @@
 {
     "identifier": "com.qwen.tts.bob.plugin",
-    "version": "1.5.5",
+    "version": "1.5.6",
     "category": "tts",
     "name": "Qwen TTS",
     "summary": "使用阿里云 Qwen3-TTS-Flash 模型进行语音合成",
@@ -8,7 +8,7 @@
     "author": "thirteenkai",
     "homepage": "https://github.com/thirteenkai/bob-plugin-qwen-tts",
     "appcast": "https://raw.githubusercontent.com/thirteenkai/bob-plugin-qwen-tts/main/appcast.json",
-    "minBobVersion": "1.6.0",
+    "minBobVersion": "1.8.0",
     "options": [
         {
             "identifier": "apiKey",
